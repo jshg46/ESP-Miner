@@ -166,7 +166,7 @@ static void system_api_add_config(cJSON *root, GlobalState *g) {
         cJSON_AddNumberToObject(root, "discordNotifyNewHighDiff", nvs_config_get_bool(NVS_CONFIG_DISCORD_NOTIFY_NEW_HIGH_DIFF) ? 1 : 0);
         cJSON_AddNumberToObject(root, "discordNotifyBestDiff", nvs_config_get_bool(NVS_CONFIG_DISCORD_NOTIFY_BEST_DIFF) ? 1 : 0);
         cJSON_AddNumberToObject(root, "discordNotifyFallback", nvs_config_get_bool(NVS_CONFIG_DISCORD_NOTIFY_FALLBACK) ? 1 : 0);
-        char discord_status[24];
+        char discord_status[64];
         discord_notify_get_status(discord_status, sizeof(discord_status));
         cJSON_AddStringToObject(root, "discordLastStatus", discord_status);
     }

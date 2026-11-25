@@ -11,6 +11,7 @@
 #include "esp_log.h"
 #include "esp_timer.h"
 #include "esp_heap_caps.h"
+#include "esp_system.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
 #include "freertos/task.h"
@@ -65,7 +66,7 @@ static slot_t s_slots[EV_COUNT];
 static int64_t s_last_sent_us[EV_COUNT];
 static SemaphoreHandle_t s_mutex = NULL;
 static TaskHandle_t s_task = NULL;
-static char s_status[24] = "never";
+static char s_status[64] = "never";
 
 // ---------------------------------------------------------------- helpers
 
@@ -353,7 +354,7 @@ static bool deliver(const slot_t *m, bool *retry)
     esp_http_client_config_t cfg = {
         .url = url,
         .method = HTTP_METHOD_POST,
-        .timeout_ms = 10000,
+        .timeout_ms = 20000,
         .crt_bundle_attach = esp_crt_bundle_attach,
         .buffer_size = 1024,
         .buffer_size_tx = 1024,
@@ -378,8 +379,14 @@ static bool deliver(const slot_t *m, bool *retry)
             }
         } else {
             *retry = true;
-            set_status("send failed");
-            ESP_LOGW(TAG, "Request failed: %s", esp_err_to_name(err));
+            const char *name = esp_err_to_name(err);
+            if (strncmp(name, "ESP_ERR_", 8) == 0) name += 8;   // shorter for the UI
+            int sock_errno = esp_http_client_get_errno(client);
+            set_status("send failed: %s (errno %d)", name, sock_errno);
+            ESP_LOGW(TAG, "Request failed: %s (0x%x), socket errno %d, free heap %u / internal %u",
+                     esp_err_to_name(err), (unsigned)err, sock_errno,
+                     (unsigned)esp_get_free_heap_size(),
+                     (unsigned)heap_caps_get_free_size(MALLOC_CAP_INTERNAL));
         }
         esp_http_client_cleanup(client);
     } else {
