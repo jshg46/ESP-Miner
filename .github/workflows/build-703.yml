@@ -2,6 +2,8 @@ name: Build SupraHex 703 factory image
 
 on:
   workflow_dispatch:
+  push:
+    branches: [supra-hex-703-v2.15.4]
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
