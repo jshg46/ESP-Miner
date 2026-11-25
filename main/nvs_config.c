@@ -127,6 +127,11 @@ static Settings settings[NVS_CONFIG_COUNT] = {
     [NVS_CONFIG_TPS546_SYNC_CONFIG]                    = {.nvs_key_name = "tps546_sync",    .type = TYPE_U16},
     [NVS_CONFIG_TPS546_FREQUENCY]                      = {.nvs_key_name = "tps546_freq",    .type = TYPE_U16},
     [NVS_CONFIG_NOMINAL_VOLTAGE]                       = {.nvs_key_name = "nominal_voltage", .type = TYPE_U16},
+    [NVS_CONFIG_DISCORD_WEBHOOK_URL]                   = {.nvs_key_name = "discord_url",     .type = TYPE_STR,   .default_value = {.str = ""},                                          .rest_name = "discordWebhookUrl",             .min = 0,  .max = 255},
+    [NVS_CONFIG_DISCORD_NOTIFY_BLOCK]                  = {.nvs_key_name = "dc_block",        .type = TYPE_BOOL,  .default_value = {.b = true},                                          .rest_name = "discordNotifyBlock",            .min = 0,  .max = 1},
+    [NVS_CONFIG_DISCORD_NOTIFY_NEW_HIGH_DIFF]          = {.nvs_key_name = "dc_highdiff",     .type = TYPE_BOOL,  .default_value = {.b = true},                                          .rest_name = "discordNotifyNewHighDiff",      .min = 0,  .max = 1},
+    [NVS_CONFIG_DISCORD_NOTIFY_BEST_DIFF]              = {.nvs_key_name = "dc_bestdiff",     .type = TYPE_BOOL,  .default_value = {.b = true},                                          .rest_name = "discordNotifyBestDiff",         .min = 0,  .max = 1},
+    [NVS_CONFIG_DISCORD_NOTIFY_FALLBACK]               = {.nvs_key_name = "dc_fallback",     .type = TYPE_BOOL,  .default_value = {.b = true},                                          .rest_name = "discordNotifyFallback",         .min = 0,  .max = 1},
 };
 
 Settings *nvs_config_get_settings(NvsConfigKey key)

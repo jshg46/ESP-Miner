@@ -457,6 +457,24 @@ components:
         idfVersion:
           type: string
           description: ESP-IDF version
+        discordWebhookUrl:
+          type: string
+          description: Discord webhook URL. Returned as "*****" when set (the URL is a secret), empty when not set. Send "" to disable, "*****" to keep the stored value.
+        discordNotifyBlock:
+          type: number
+          description: Notify Discord when a block is found (0=off, 1=on)
+        discordNotifyNewHighDiff:
+          type: number
+          description: Notify Discord about a new session high difficulty (0=off, 1=on)
+        discordNotifyBestDiff:
+          type: number
+          description: Notify Discord about a new all-time best difficulty (0=off, 1=on)
+        discordNotifyFallback:
+          type: number
+          description: Notify Discord when the miner switches to the fallback pool or back (0=off, 1=on)
+        discordLastStatus:
+          type: string
+          description: Result of the last Discord delivery attempt ("never", "ok", "http 404", ...)
         invertscreen:
           type: number
           description: Screen invert setting (0=normal, 1=inverted)
@@ -972,6 +990,34 @@ components:
           enum: [0, 1]
           examples:
             - 0
+        discordWebhookUrl:
+          type: string
+          maxLength: 255
+          description: Discord webhook URL (https://discord.com/api/webhooks/...). Empty string disables notifications. "*****" keeps the stored value.
+        discordNotifyBlock:
+          type: integer
+          description: Notify Discord when a block is found (0=off, 1=on)
+          enum: [0, 1]
+          examples:
+            - 1
+        discordNotifyNewHighDiff:
+          type: integer
+          description: Notify Discord about a new session high difficulty (0=off, 1=on)
+          enum: [0, 1]
+          examples:
+            - 1
+        discordNotifyBestDiff:
+          type: integer
+          description: Notify Discord about a new all-time best difficulty (0=off, 1=on)
+          enum: [0, 1]
+          examples:
+            - 1
+        discordNotifyFallback:
+          type: integer
+          description: Notify Discord when the miner switches to the fallback pool or back (0=off, 1=on)
+          enum: [0, 1]
+          examples:
+            - 1
         invertscreen:
           type: integer
           description: Whether to invert screen colors (0=normal, 1=inverted)
@@ -1258,6 +1304,27 @@ paths:
             application/json:
               schema:
                 '$ref': '#/components/schemas/GenericResponse'
+        '401':
+          description: Unauthorized - Client not in allowed network range
+        '500':
+          description: Internal server error
+
+  /api/system/discord/test:
+    post:
+      summary: Send a Discord test notification
+      description: Queues a test message to the saved Discord webhook. Save the webhook URL first.
+      operationId: testDiscordWebhook
+      tags:
+        - system
+      responses:
+        '200':
+          description: Test notification queued
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GenericResponse'
+        '400':
+          description: No valid Discord webhook URL is saved
         '401':
           description: Unauthorized - Client not in allowed network range
         '500':

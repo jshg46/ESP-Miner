@@ -29,6 +29,7 @@
 #include "filesystem.h"
 #include "log_buffer.h"
 #include "setup_ble.h"
+#include "discord_notify.h"
 #include "esp_ota_ops.h"
 
 static GlobalState GLOBAL_STATE;
@@ -205,6 +206,8 @@ void app_main(void)
 
     // Connected to WiFi: tear down the setup BLE service to free the radio.
     setup_ble_stop();
+
+    discord_notify_init(&GLOBAL_STATE);
 
     queue_init(&GLOBAL_STATE.stratum_queue);
 

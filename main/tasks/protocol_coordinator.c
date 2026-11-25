@@ -13,6 +13,7 @@
 #include "stratum_v2_task.h"
 #include "connect.h"
 #include "system.h"
+#include "discord_notify.h"
 
 #include <string.h>
 
@@ -301,6 +302,11 @@ static void switch_to_fallback(GlobalState *gs)
 
     start_protocol_task(gs, s_fallback_protocol);
 
+    {
+        PoolConfig *fb = &gs->SYSTEM_MODULE.pools[gs->SYSTEM_MODULE.secondary_pool_index];
+        discord_notify_pool_switch(true, fb->url, fb->port, gs->SYSTEM_MODULE.use_fallback_stratum);
+    }
+
     // Only enable heartbeat if this was an automatic failover (not user choice)
     s_heartbeat_enabled = !gs->SYSTEM_MODULE.use_fallback_stratum;
 }
@@ -322,6 +328,11 @@ static void switch_to_primary(GlobalState *gs)
     s_state = COORD_STATE_RUNNING_PRIMARY;
 
     start_protocol_task(gs, s_primary_protocol);
+
+    {
+        PoolConfig *pr = &gs->SYSTEM_MODULE.pools[gs->SYSTEM_MODULE.primary_pool_index];
+        discord_notify_pool_switch(false, pr->url, pr->port, false);
+    }
 
     s_heartbeat_enabled = false;
 }
@@ -388,6 +399,11 @@ static void resume_on_pool(GlobalState *gs, bool use_fallback)
              proto == STRATUM_PROTOCOL_V2 ? STRATUM_V2 : STRATUM_V1);
 
     start_protocol_task(gs, proto);
+
+    if (use_fallback) {
+        PoolConfig *fb = &gs->SYSTEM_MODULE.pools[gs->SYSTEM_MODULE.secondary_pool_index];
+        discord_notify_pool_switch(true, fb->url, fb->port, gs->SYSTEM_MODULE.use_fallback_stratum);
+    }
 
     // Only run the auto-switch-back heartbeat for *automatic* failovers
     // (user did not explicitly choose the fallback pool).

@@ -19,6 +19,7 @@
 #include "statistics_task.h"
 #include "stratum_v2_task.h"
 #include "asic.h"
+#include "discord_notify.h"
 
 
 static const char *get_reset_reason_str(esp_reset_reason_t reason)
@@ -155,6 +156,20 @@ static void system_api_add_config(cJSON *root, GlobalState *g) {
     cJSON_AddStringToObject(root, "ipv4", g->SYSTEM_MODULE.ip_addr_str);
     cJSON_AddStringToObject(root, "ipv6", g->SYSTEM_MODULE.ipv6_addr_str);
     cJSON_AddNumberToObject(root, "apEnabled", g->SYSTEM_MODULE.ap_enabled ? 1 : 0);
+
+    // Discord notifications (the webhook URL is a secret, so it is never returned)
+    {
+        char *discord_url = nvs_config_get_string(NVS_CONFIG_DISCORD_WEBHOOK_URL);
+        cJSON_AddStringToObject(root, "discordWebhookUrl", (discord_url && discord_url[0]) ? "*****" : "");
+        free(discord_url);
+        cJSON_AddNumberToObject(root, "discordNotifyBlock", nvs_config_get_bool(NVS_CONFIG_DISCORD_NOTIFY_BLOCK) ? 1 : 0);
+        cJSON_AddNumberToObject(root, "discordNotifyNewHighDiff", nvs_config_get_bool(NVS_CONFIG_DISCORD_NOTIFY_NEW_HIGH_DIFF) ? 1 : 0);
+        cJSON_AddNumberToObject(root, "discordNotifyBestDiff", nvs_config_get_bool(NVS_CONFIG_DISCORD_NOTIFY_BEST_DIFF) ? 1 : 0);
+        cJSON_AddNumberToObject(root, "discordNotifyFallback", nvs_config_get_bool(NVS_CONFIG_DISCORD_NOTIFY_FALLBACK) ? 1 : 0);
+        char discord_status[24];
+        discord_notify_get_status(discord_status, sizeof(discord_status));
+        cJSON_AddStringToObject(root, "discordLastStatus", discord_status);
+    }
 
     // Pool Configuration
     cJSON_AddStringToObject(root, "poolConnectionInfo", g->SYSTEM_MODULE.pool_connection_info);

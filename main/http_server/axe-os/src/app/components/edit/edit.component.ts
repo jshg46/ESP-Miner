@@ -3,7 +3,7 @@ import { getHttpErrorMessage } from 'src/app/utils/error-handler';
 import { Component, Input, OnInit, OnDestroy, OnChanges, SimpleChanges } from '@angular/core';
 import { FormBuilder, FormGroup, FormControl, Validators, ReactiveFormsModule } from '@angular/forms';
 import { ToastrService } from 'ngx-toastr';
-import { forkJoin, startWith, Subject, takeUntil, pairwise, BehaviorSubject, Observable, first } from 'rxjs';
+import { forkJoin, startWith, Subject, takeUntil, pairwise, BehaviorSubject, Observable, first, timer, switchMap } from 'rxjs';
 import { LoadingService } from 'src/app/services/loading.service';
 import { LiveDataService } from 'src/app/services/live-data.service';
 import { SystemApiService } from 'src/app/services/system.service';
@@ -17,6 +17,8 @@ import { CheckboxComponent } from '../checkbox/checkbox.component';
 import { SliderComponent } from '../slider/slider.component';
 
 const DISPLAY_TIMEOUT_STEPS = [0, 1, 2, 5, 15, 30, 60, 60 * 2, 60 * 4, 60* 8, -1];
+// Same rules as the firmware (discord_notify_webhook_url_valid): empty = off, "*****" = keep the stored URL.
+const DISCORD_WEBHOOK_PATTERN = /^$|^\*{5}$|^https:\/\/(?:(?:ptb\.|canary\.)?discord\.com|discordapp\.com)\/api\/webhooks\/[A-Za-z0-9_\/?=&.-]+$/;
 const STATS_FREQUENCY_STEPS = [0, 1, 2, 5, 10, 30, 60, 60 * 2, 60 * 6, 60 * 14, 60 * 28, 60 * 60];
 
 @Component({
@@ -60,6 +62,11 @@ export class EditComponent implements OnInit, OnDestroy, OnChanges {
   public displayTimeoutControl: FormControl;
   public statsFrequencyControl: FormControl;
   public statsLimit: number = 720;
+
+  // Discord notifications
+  public discordConfigured = false;
+  public discordLastStatus = '';
+  public testingDiscord = false;
 
   constructor(
     private fb: FormBuilder,
@@ -161,6 +168,8 @@ export class EditComponent implements OnInit, OnDestroy, OnChanges {
       this.defaultVoltage = asic.defaultVoltage;
       this.voltageOptions = asic.voltageOptions;
       this.statsLimit = info.statsLimit || 720;
+      this.discordConfigured = !!info.discordWebhookUrl;
+      this.discordLastStatus = info.discordLastStatus ?? '';
 
       // Check if overclock is enabled in NVS
       if (info.overclockEnabled) {
@@ -191,7 +200,16 @@ export class EditComponent implements OnInit, OnDestroy, OnChanges {
             Validators.required,
             Validators.min(0),
             Validators.max(this.statsFrequencyMaxValue)
-          ]]
+          ]],
+          // "*****" = a URL is already stored on the miner (it is never sent back)
+          discordWebhookUrl: [info.discordWebhookUrl ?? '', [
+            Validators.maxLength(255),
+            Validators.pattern(DISCORD_WEBHOOK_PATTERN)
+          ]],
+          discordNotifyBlock: [(info.discordNotifyBlock ?? 1) == 1],
+          discordNotifyNewHighDiff: [(info.discordNotifyNewHighDiff ?? 1) == 1],
+          discordNotifyBestDiff: [(info.discordNotifyBestDiff ?? 1) == 1],
+          discordNotifyFallback: [(info.discordNotifyFallback ?? 1) == 1]
         });
 
         this.formSubject.next(this.form);
@@ -254,6 +272,13 @@ export class EditComponent implements OnInit, OnDestroy, OnChanges {
       delete form.stratumPassword;
     }
 
+    const discordUrl = typeof form.discordWebhookUrl === 'string' ? form.discordWebhookUrl.trim() : '';
+    if (discordUrl === '*****') {
+      delete form.discordWebhookUrl;
+    } else {
+      form.discordWebhookUrl = discordUrl;
+    }
+
     const deviceUri = this.uri || '';
     const restartAlreadyPending = this.savedChanges;
     const restartRequired = this.isRestartRequired;
@@ -268,6 +293,11 @@ export class EditComponent implements OnInit, OnDestroy, OnChanges {
           }
           this.toastr.success(successMessage);
           this.form.markAsPristine();
+          if (discordUrl !== '*****') {
+            this.discordConfigured = discordUrl !== '';
+            this.form.patchValue({ discordWebhookUrl: discordUrl === '' ? '' : '*****' }, { emitEvent: false });
+            this.form.controls['discordWebhookUrl'].markAsPristine();
+          }
           this.savedChanges = restartAlreadyPending || restartRequired;
         },
         error: (err: HttpErrorResponse) => {
@@ -276,6 +306,29 @@ export class EditComponent implements OnInit, OnDestroy, OnChanges {
           this.savedChanges = restartAlreadyPending;
         }
       });
+  }
+
+  public testDiscord(): void {
+    const deviceUri = this.uri || '';
+    this.testingDiscord = true;
+    this.systemService.testDiscordWebhook(deviceUri).subscribe({
+      next: () => {
+        this.testingDiscord = false;
+        this.toastr.success('Test message queued. Check your Discord channel.');
+        // The miner delivers it in the background; refresh the delivery status shortly after.
+        timer(4000).pipe(
+          switchMap(() => this.systemService.getInfo(deviceUri)),
+          takeUntil(this.destroy$)
+        ).subscribe({
+          next: (info) => this.discordLastStatus = info.discordLastStatus ?? '',
+          error: () => {}
+        });
+      },
+      error: (err: HttpErrorResponse) => {
+        this.testingDiscord = false;
+        this.toastr.error(`Could not send test message. ${getHttpErrorMessage(err, this.uri)}`);
+      }
+    });
   }
 
   disableOverheatMode() {
@@ -385,7 +438,12 @@ export class EditComponent implements OnInit, OnDestroy, OnChanges {
       'manualFanSpeed',
       'temptarget',
       'overheat_mode',
-      'statsFrequency'
+      'statsFrequency',
+      'discordWebhookUrl',
+      'discordNotifyBlock',
+      'discordNotifyNewHighDiff',
+      'discordNotifyBestDiff',
+      'discordNotifyFallback'
     ];
   }
 

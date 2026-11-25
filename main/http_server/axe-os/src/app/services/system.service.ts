@@ -172,6 +172,12 @@ export class SystemApiService {
         display: "SSD1306 (128x32)",
         rotation: 0,
         invertscreen: 0,
+        discordWebhookUrl: '',
+        discordNotifyBlock: 1,
+        discordNotifyNewHighDiff: 1,
+        discordNotifyBestDiff: 1,
+        discordNotifyFallback: 1,
+        discordLastStatus: 'never',
         displayTimeout: -1,
         autofanspeed: 1,
         isPSRAMAvailable: 1,
@@ -347,6 +353,18 @@ export class SystemApiService {
     }
 
     return of({ message: 'Block found notification dismissed (mock)' });
+  }
+
+  public testDiscordWebhook(uri: string = ''): Observable<GenericResponse> {
+    if (!environment.mock && this.api && !uri) {
+      return from(this.api.invoke(functions.testDiscordWebhook, {}) as Promise<GenericResponse>);
+    }
+
+    if (!environment.mock && uri) {
+      return this.httpClient.post<GenericResponse>(`${uri}/api/system/discord/test`, {});
+    }
+
+    return of({ message: 'Test notification queued (mock)' });
   }
 
   public pauseMining(uri: string = ''): Observable<GenericResponse> {

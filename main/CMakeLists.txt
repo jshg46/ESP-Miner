@@ -10,6 +10,7 @@ SRCS
     "input.c"
     "filesystem.c"
     "system.c"
+    "discord_notify.c"
     "work_queue.c"
     "lv_font_portfolio-6x8.c"
     "logo.c"
@@ -83,6 +84,8 @@ REQUIRES
 
 PRIV_REQUIRES
     "app_update"
+    "esp_http_client"
+    "esp-tls"
     "esp_adc"
     "esp_app_format"
     "esp_driver_gpio"

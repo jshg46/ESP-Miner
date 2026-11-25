@@ -170,6 +170,64 @@
         </div>
       </div>
     </div>
+    <h3 class="mt-5">Discord Notifications</h3>
+    <div class="card">
+      <div class="flex flex-col md:flex-row md:items-center mb-4 gap-2">
+        <label for="discordWebhookUrl" class="w-full md:w-2/12 font-medium">Webhook URL</label>
+        <div class="w-full md:w-10/12">
+          <input class="input-text" id="discordWebhookUrl" formControlName="discordWebhookUrl" type="password" autocomplete="off"
+            placeholder="https://discord.com/api/webhooks/..." />
+          @if (form.controls['discordWebhookUrl'].invalid && form.controls['discordWebhookUrl'].dirty) {
+            <small class="block mt-1 text-primary font-medium">
+              Enter a Discord webhook URL (https://discord.com/api/webhooks/...).
+            </small>
+          }
+          <small class="block mt-1 opacity-70">
+            Create one in Discord under Server Settings, Integrations, Webhooks. The URL is stored on the miner and is not shown again after saving. Leave empty to turn notifications off.
+          </small>
+        </div>
+      </div>
+      <div class="flex flex-col md:flex-row md:items-center mb-4 gap-2">
+        <label for="discordNotifyBlock" class="w-full md:w-2/12 font-medium cursor-pointer select-none">Block found</label>
+        <div class="w-full md:w-10/12 flex items-center">
+          <app-checkbox name="discordNotifyBlock" formControlName="discordNotifyBlock" inputId="discordNotifyBlock" [binary]="true"></app-checkbox>
+        </div>
+      </div>
+      <div class="flex flex-col md:flex-row md:items-center mb-4 gap-2">
+        <label for="discordNotifyNewHighDiff" class="w-full md:w-2/12 font-medium cursor-pointer select-none">New high difficulty</label>
+        <div class="w-full md:w-10/12 flex items-center gap-2">
+          <app-checkbox name="discordNotifyNewHighDiff" formControlName="discordNotifyNewHighDiff" inputId="discordNotifyNewHighDiff" [binary]="true"></app-checkbox>
+          <small class="opacity-70">Best share since boot (at most one message every 5 minutes)</small>
+        </div>
+      </div>
+      <div class="flex flex-col md:flex-row md:items-center mb-4 gap-2">
+        <label for="discordNotifyBestDiff" class="w-full md:w-2/12 font-medium cursor-pointer select-none">Best all-time difficulty</label>
+        <div class="w-full md:w-10/12 flex items-center gap-2">
+          <app-checkbox name="discordNotifyBestDiff" formControlName="discordNotifyBestDiff" inputId="discordNotifyBestDiff" [binary]="true"></app-checkbox>
+          <small class="opacity-70">New personal record (at most one message per minute)</small>
+        </div>
+      </div>
+      <div class="flex flex-col md:flex-row md:items-center mb-4 gap-2">
+        <label for="discordNotifyFallback" class="w-full md:w-2/12 font-medium cursor-pointer select-none">Fallback pool</label>
+        <div class="w-full md:w-10/12 flex items-center gap-2">
+          <app-checkbox name="discordNotifyFallback" formControlName="discordNotifyFallback" inputId="discordNotifyFallback" [binary]="true"></app-checkbox>
+          <small class="opacity-70">Switch to the fallback pool, and back to the primary</small>
+        </div>
+      </div>
+      <div class="flex flex-col md:flex-row md:items-center gap-2">
+        <span class="hidden md:block w-full md:w-2/12"></span>
+        <div class="w-full md:w-10/12 flex flex-wrap items-center gap-3">
+          <button type="button" class="btn btn-secondary"
+            [disabled]="form.dirty || !discordConfigured || testingDiscord"
+            (click)="testDiscord()">Send test message</button>
+          @if (form.dirty) {
+            <small class="opacity-70">Save your changes first.</small>
+          } @else if (discordConfigured && discordLastStatus) {
+            <small class="opacity-70">Last delivery: {{discordLastStatus}}</small>
+          }
+        </div>
+      </div>
+    </div>
     <div class="flex mt-5 gap-3">
       <button [disabled]="!form.dirty || form.invalid" (click)="updateSystem()"
       class="btn">Save</button>

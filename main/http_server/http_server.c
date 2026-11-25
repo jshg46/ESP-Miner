@@ -42,6 +42,7 @@
 #include "websocket_log.h"
 #include "websocket_api.h"
 #include "system_api_json.h"
+#include "discord_notify.h"
 #include "log_buffer.h"
 #include "cjson_utils.h"
 #include "utils.h"
@@ -854,6 +855,16 @@ bool check_settings_and_update(const cJSON * const root, char **redirect_url)
         cJSON * item = cJSON_GetObjectItem(root, setting->rest_name);
         if (!item) continue;
 
+        if (key == NVS_CONFIG_DISCORD_WEBHOOK_URL && cJSON_IsString(item)) {
+            // "*****" is the masked value returned by GET: keep the stored URL.
+            if (strcmp(item->valuestring, "*****") == 0) continue;
+            if (item->valuestring[0] != '\0' && !discord_notify_webhook_url_valid(item->valuestring)) {
+                ESP_LOGW(TAG, "Invalid Discord webhook URL");
+                result = false;
+                continue;
+            }
+        }
+
         switch (setting->type) {
             case TYPE_STR: {
                 if (!cJSON_IsString(item)) {
@@ -960,6 +971,8 @@ bool check_settings_and_update(const cJSON * const root, char **redirect_url)
 
             cJSON * item = cJSON_GetObjectItem(root, setting->rest_name);
             if (!item) continue;
+            if (key == NVS_CONFIG_DISCORD_WEBHOOK_URL && cJSON_IsString(item) &&
+                strcmp(item->valuestring, "*****") == 0) continue;
 
             switch(setting->type) {
                 case TYPE_STR:
@@ -1191,6 +1204,30 @@ static esp_err_t POST_restart(httpd_req_t * req)
 
     // This return statement will never be reached, but it's good practice to include it
     return res;
+}
+
+static esp_err_t POST_discord_test(httpd_req_t * req)
+{
+    if (is_network_allowed(req) != ESP_OK) {
+        return httpd_resp_send_err(req, HTTPD_401_UNAUTHORIZED, "Unauthorized");
+    }
+
+    // Set CORS headers
+    if (set_cors_headers(req) != ESP_OK) {
+        httpd_resp_send_500(req);
+        return ESP_OK;
+    }
+
+    if (!discord_notify_send_test()) {
+        httpd_resp_set_status(req, HTTPD_400);
+        httpd_resp_set_type(req, "application/json");
+        httpd_resp_sendstr(req, "{\"message\":\"No valid Discord webhook URL is saved. Save the settings first.\"}");
+        return ESP_OK;
+    }
+
+    httpd_resp_set_type(req, "application/json");
+    httpd_resp_sendstr(req, "{\"message\":\"Test notification queued\"}");
+    return ESP_OK;
 }
 
 static esp_err_t POST_dismiss_block_found(httpd_req_t * req)
@@ -1852,7 +1889,7 @@ esp_err_t start_rest_server(GlobalState * global_state)
     config.uri_match_fn = httpd_uri_match_wildcard;
     config.stack_size = 8192;
     config.max_open_sockets = 20;
-    config.max_uri_handlers = 25;
+    config.max_uri_handlers = 26;
     config.close_fn = websocket_close_fn;
     config.lru_purge_enable = true;
     config.keep_alive_enable = true;
@@ -1981,6 +2018,14 @@ esp_err_t start_rest_server(GlobalState * global_state)
         .user_ctx = NULL
     };
     httpd_register_uri_handler(server, &system_dismiss_block_found_uri);
+
+    httpd_uri_t system_discord_test_uri = {
+        .uri = "/api/system/discord/test",
+        .method = HTTP_POST,
+        .handler = POST_discord_test,
+        .user_ctx = NULL
+    };
+    httpd_register_uri_handler(server, &system_discord_test_uri);
 
     httpd_uri_t update_system_settings_uri = {
         .uri = "/api/system", 
