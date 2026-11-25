@@ -1,0 +1,55 @@
+name: Build SupraHex 703 factory image
+
+on:
+  workflow_dispatch:
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v6
+        with:
+          submodules: 'recursive'
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '24.14.0'
+      - name: Build web dist
+        working-directory: ./main/http_server/axe-os
+        run: |
+          npm ci
+          npm run build
+      - name: esp-idf build
+        uses: espressif/esp-idf-ci-action@v1
+        with:
+          esp_idf_version: v6.0.2
+          target: esp32s3
+          command: GITHUB_ACTIONS="true" idf.py build && python tools/test_ca_bundle.py --build-dir build
+          path: '.'
+      - name: esp-idf build factory config for 703
+        uses: espressif/esp-idf-ci-action@v1
+        with:
+          esp_idf_version: v6.0.2
+          target: esp32s3
+          command: /opt/esp/idf/components/nvs_flash/nvs_partition_generator/nvs_partition_gen.py generate config-703.cvs config.bin 0x6000
+          path: '.'
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.10'
+          cache: 'pip'
+      - run: pip install esptool
+      - name: Create factory image
+        run: ./merge_bin.sh -c esp-miner-factory-703-v2.15.4.bin
+      - name: Create update image
+        run: ./merge_bin.sh -u esp-miner-update-703-v2.15.4.bin
+      - uses: actions/upload-artifact@v4
+        with:
+          name: supra703-v2.15.4
+          path: |
+            esp-miner-factory-703-v2.15.4.bin
+            esp-miner-update-703-v2.15.4.bin
+            build/esp-miner.bin
