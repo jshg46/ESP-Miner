@@ -1,42 +1,3 @@
-void SYSTEM_notify_found_nonce(GlobalState * GLOBAL_STATE, double diff, uint32_t target)
-{
-    SystemModule * module = &GLOBAL_STATE->SYSTEM_MODULE;
-
-    const uint64_t previous_all_time_best = module->best_nonce_diff;
-    bool new_session_best = false;
-
-    if ((uint64_t) diff > module->best_session_nonce_diff) {
-        module->best_session_nonce_diff = (uint64_t) diff;
-        suffixString((uint64_t) diff, module->best_session_diff_string, DIFF_STRING_SIZE, 0);
-        new_session_best = true;
-    }
-
-    double network_diff = networkDifficulty(target);
-    if (diff >= network_diff) {
-        module->block_found++;
-        module->show_new_block = true;
-        ESP_LOGI(TAG, "FOUND BLOCK!!!!!!!!!!!!!!!!!!!!!! %f >= %f (count: %d)", diff, network_diff, module->block_found);
-        discord_notify_block_found(diff, network_diff, module->block_found);
-    }
-
-    if ((uint64_t) diff <= module->best_nonce_diff) {
-        if (new_session_best) {
-            discord_notify_share_diff((uint64_t) diff, previous_all_time_best, true, false);
-        }
-        return;
-    }
-    module->best_nonce_diff = (uint64_t) diff;
-
-    nvs_config_set_u64(NVS_CONFIG_BEST_DIFF, module->best_nonce_diff);
-
-    // make the best_nonce_diff into a string
-    suffixString((uint64_t) diff, module->best_diff_string, DIFF_STRING_SIZE, 0);
-
-    ESP_LOGI(TAG, "New best difficulty: %s", module->best_diff_string);
-
-    discord_notify_share_diff((uint64_t) diff, previous_all_time_best, new_session_best, true);
-}
-
 #include <inttypes.h>
 #include <math.h>
 #include <stdint.h>
@@ -538,9 +499,13 @@ void SYSTEM_notify_found_nonce(GlobalState * GLOBAL_STATE, double diff, uint32_t
 {
     SystemModule * module = &GLOBAL_STATE->SYSTEM_MODULE;
 
+    const uint64_t previous_all_time_best = module->best_nonce_diff;
+    bool new_session_best = false;
+
     if ((uint64_t) diff > module->best_session_nonce_diff) {
         module->best_session_nonce_diff = (uint64_t) diff;
         suffixString((uint64_t) diff, module->best_session_diff_string, DIFF_STRING_SIZE, 0);
+        new_session_best = true;
     }
 
     double network_diff = networkDifficulty(target);
@@ -548,9 +513,13 @@ void SYSTEM_notify_found_nonce(GlobalState * GLOBAL_STATE, double diff, uint32_t
         module->block_found++;
         module->show_new_block = true;
         ESP_LOGI(TAG, "FOUND BLOCK!!!!!!!!!!!!!!!!!!!!!! %f >= %f (count: %d)", diff, network_diff, module->block_found);
+        discord_notify_block_found(diff, network_diff, module->block_found);
     }
 
     if ((uint64_t) diff <= module->best_nonce_diff) {
+        if (new_session_best) {
+            discord_notify_share_diff((uint64_t) diff, previous_all_time_best, true, false);
+        }
         return;
     }
     module->best_nonce_diff = (uint64_t) diff;
@@ -561,6 +530,8 @@ void SYSTEM_notify_found_nonce(GlobalState * GLOBAL_STATE, double diff, uint32_t
     suffixString((uint64_t) diff, module->best_diff_string, DIFF_STRING_SIZE, 0);
 
     ESP_LOGI(TAG, "New best difficulty: %s", module->best_diff_string);
+
+    discord_notify_share_diff((uint64_t) diff, previous_all_time_best, new_session_best, true);
 }
 
 static esp_err_t ensure_overheat_mode_config() {
