@@ -5,6 +5,9 @@ on:
   push:
     branches: [supra-hex-703-v2.15.4]
 
+permissions:
+  contents: write
+
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
@@ -55,3 +58,11 @@ jobs:
             esp-miner-factory-703-v2.15.4.bin
             esp-miner-update-703-v2.15.4.bin
             build/esp-miner.bin
+      - name: Publish images to branch built-703-v2.15.4
+        run: |
+          mkdir -p /tmp/out
+          cp esp-miner-factory-703-v2.15.4.bin esp-miner-update-703-v2.15.4.bin build/esp-miner.bin /tmp/out/
+          cd /tmp/out && git init -q -b built-703-v2.15.4
+          git config user.name "github-actions" && git config user.email "actions@github.com"
+          git add . && git commit -qm "703 v2.15.4 images from ${{ github.sha }}"
+          git push -f "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git" built-703-v2.15.4
