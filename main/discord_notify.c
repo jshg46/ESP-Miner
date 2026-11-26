@@ -382,9 +382,13 @@ static bool deliver(const slot_t *m, bool *retry)
             const char *name = esp_err_to_name(err);
             if (strncmp(name, "ESP_ERR_", 8) == 0) name += 8;   // shorter for the UI
             int sock_errno = esp_http_client_get_errno(client);
-            set_status("send failed: %s (errno %d)", name, sock_errno);
-            ESP_LOGW(TAG, "Request failed: %s (0x%x), socket errno %d, free heap %u / internal %u",
-                     esp_err_to_name(err), (unsigned)err, sock_errno,
+            int tls_code = 0, tls_flags = 0;
+            esp_http_client_get_and_clear_last_tls_error(client, &tls_code, &tls_flags);
+            // tls_flags holds the mbedTLS certificate verification flags (0x8 = issuer not trusted,
+            // 0x1 = expired, 0x2 = name mismatch, ...); tls_code is the mbedTLS/esp-tls error.
+            set_status("send failed: %s tls=%d flags=0x%x e%d", name, tls_code, (unsigned)tls_flags, sock_errno);
+            ESP_LOGW(TAG, "Request failed: %s (0x%x), tls error %d (0x%x), cert flags 0x%x, socket errno %d, free heap %u / internal %u",
+                     esp_err_to_name(err), (unsigned)err, tls_code, (unsigned)tls_code, (unsigned)tls_flags, sock_errno,
                      (unsigned)esp_get_free_heap_size(),
                      (unsigned)heap_caps_get_free_size(MALLOC_CAP_INTERNAL));
         }
