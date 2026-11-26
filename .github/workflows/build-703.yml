@@ -76,5 +76,5 @@ jobs:
         with:
           esp_idf_version: v6.0.2
           target: esp32s3
-          command: "echo MARK-BEGIN; grep -rn -i -E '0x3000' /opt/esp/idf/components/mbedtls /opt/esp/idf/components/esp-tls /opt/esp/idf/components/esp_http_client --include=*.h 2>/dev/null | head -40; echo MARK-MBEDTLS-VER; grep -rn 'MBEDTLS_VERSION_STRING ' /opt/esp/idf/components/mbedtls --include=*.h | head -3; echo MARK-END"
+          command: "echo MARK-BEGIN; F=/opt/esp/idf/components/mbedtls/esp_crt_bundle/esp_crt_bundle.c; grep -n -E 'FATAL|ESP_LOGE|ESP_LOGW|return|alloc|pk_|psa' $F | head -90; echo MARK-END"
           path: '.'
