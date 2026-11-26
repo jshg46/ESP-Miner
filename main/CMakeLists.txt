@@ -106,6 +106,7 @@ PRIV_REQUIRES
     "bt"
 
 EMBED_FILES "http_server/recovery_page.html"
+EMBED_TXTFILES "../certificates/discord_roots.pem"
 )
 
 idf_build_set_property(COMPILE_OPTIONS "-DLV_CONF_INCLUDE_SIMPLE=1" APPEND)

@@ -7,6 +7,7 @@
 
 #include "cJSON.h"
 #include "esp_crt_bundle.h"
+#include "esp_tls.h"
 #include "esp_http_client.h"
 #include "esp_log.h"
 #include "esp_timer.h"
@@ -335,6 +336,8 @@ static char *build_payload(const slot_t *m)
 }
 
 // Returns true when delivered or when retrying cannot help.
+extern const uint8_t discord_roots_pem_start[] asm("_binary_discord_roots_pem_start");
+
 static bool deliver(const slot_t *m, bool *retry)
 {
     *retry = false;
@@ -351,14 +354,25 @@ static bool deliver(const slot_t *m, bool *retry)
         return false;
     }
 
+    // Attempt 1 (default): pinned Discord/Cloudflare root set, verified by plain mbedTLS. This does not
+    // use the global certificate bundle pointer, which esp_crt_bundle_detach() (called whenever ANY other
+    // TLS session closes, e.g. stratum) sets to NULL, making the bundle verifier fail with
+    // MBEDTLS_ERR_X509_FATAL_ERROR ("No certificates in bundle") in the middle of a handshake.
+    // Attempt 2 (after a failure): the full CA bundle.
+    static int s_attempt = 0;
+    bool use_pinned = (s_attempt % 2) == 0;
     esp_http_client_config_t cfg = {
         .url = url,
         .method = HTTP_METHOD_POST,
         .timeout_ms = 20000,
-        .crt_bundle_attach = esp_crt_bundle_attach,
         .buffer_size = 1024,
         .buffer_size_tx = 1024,
     };
+    if (use_pinned) {
+        cfg.cert_pem = (const char *)discord_roots_pem_start;
+    } else {
+        cfg.crt_bundle_attach = esp_crt_bundle_attach;
+    }
     esp_http_client_handle_t client = esp_http_client_init(&cfg);
     bool ok = false;
     if (client) {
@@ -386,7 +400,8 @@ static bool deliver(const slot_t *m, bool *retry)
             esp_http_client_get_and_clear_last_tls_error(client, &tls_code, &tls_flags);
             // tls_flags holds the mbedTLS certificate verification flags (0x8 = issuer not trusted,
             // 0x1 = expired, 0x2 = name mismatch, ...); tls_code is the mbedTLS/esp-tls error.
-            set_status("send failed: %s tls=%d flags=0x%x e%d", name, tls_code, (unsigned)tls_flags, sock_errno);
+            s_attempt++;   // next try uses the other trust source
+            set_status("%s failed: %s tls=%d fl=0x%x e%d", use_pinned ? "pin" : "bundle", name, tls_code, (unsigned)tls_flags, sock_errno);
             ESP_LOGW(TAG, "Request failed: %s (0x%x), tls error %d (0x%x), cert flags 0x%x, socket errno %d, free heap %u / internal %u",
                      esp_err_to_name(err), (unsigned)err, tls_code, (unsigned)tls_code, (unsigned)tls_flags, sock_errno,
                      (unsigned)esp_get_free_heap_size(),
