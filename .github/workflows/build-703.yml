@@ -66,3 +66,15 @@ jobs:
           git config user.name "github-actions" && git config user.email "actions@github.com"
           git add . && git commit -qm "703 discord v2.15.4 images from ${{ github.sha }}"
           git push -f "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git" built-703-discord
+
+  decode-tls-code:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Look up TLS error 0x3000 in the IDF mbedtls/esp-tls headers
+        uses: espressif/esp-idf-ci-action@v1
+        with:
+          esp_idf_version: v6.0.2
+          target: esp32s3
+          command: "echo MARK-BEGIN; grep -rn -i -E '0x3000' /opt/esp/idf/components/mbedtls /opt/esp/idf/components/esp-tls /opt/esp/idf/components/esp_http_client --include=*.h 2>/dev/null | head -40; echo MARK-MBEDTLS-VER; grep -rn 'MBEDTLS_VERSION_STRING ' /opt/esp/idf/components/mbedtls --include=*.h | head -3; echo MARK-END"
+          path: '.'
