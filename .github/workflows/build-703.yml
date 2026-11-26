@@ -76,5 +76,5 @@ jobs:
         with:
           esp_idf_version: v6.0.2
           target: esp32s3
-          command: "echo MARK-BEGIN; F=/opt/esp/idf/components/mbedtls/esp_crt_bundle/esp_crt_bundle.c; grep -n -E 'FATAL|ESP_LOGE|ESP_LOGW|return|alloc|pk_|psa' $F | head -90; echo MARK-END"
+          command: "bash ci-peek.sh"
           path: '.'
